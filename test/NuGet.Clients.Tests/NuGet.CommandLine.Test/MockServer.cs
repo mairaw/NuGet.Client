@@ -30,10 +30,12 @@ namespace NuGet.CommandLine.Test
         public string BasePath { get; }
         public HttpListener Listener { get; }
         private PortReserver PortReserver { get; }
+        private PortReserver SecurePortReserver { get; }
         public RouteTable Get { get; }
         public RouteTable Put { get; }
         public RouteTable Delete { get; }
         public string Uri { get { return PortReserver.BaseUri; } }
+        public string SecureUri { get { return SecurePortReserver.BaseUri; } }
 
         /// <summary>
         /// Observe requests without handling them directly.
@@ -48,6 +50,7 @@ namespace NuGet.CommandLine.Test
             BasePath = $"/{Guid.NewGuid().ToString("D")}";
 
             PortReserver = new PortReserver(BasePath);
+            SecurePortReserver = new PortReserver(BasePath);
 
             // tests that cancel downloads and exit will cause the mock server to throw, this should be ignored.
             Listener = new HttpListener()
@@ -56,6 +59,7 @@ namespace NuGet.CommandLine.Test
             };
 
             Listener.Prefixes.Add(PortReserver.BaseUri);
+            Listener.Prefixes.Add(SecurePortReserver.BaseUri);
 
             Get = new RouteTable(BasePath);
             Put = new RouteTable(BasePath);

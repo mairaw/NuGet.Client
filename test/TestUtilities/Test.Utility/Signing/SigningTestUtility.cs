@@ -59,6 +59,21 @@ namespace Test.Utility.Signing
 
         /// <summary>
         /// Modification generator that can be passed to TestCertificate.Generate().
+        /// The generator will change the certificate EKU to CodeSigning.
+        /// </summary>
+        public static Action<X509V3CertificateGenerator> CertificateModificationGeneratorForSSLEkuCert = delegate (X509V3CertificateGenerator gen)
+        {
+            // CodeSigning EKU
+            var usages = new[] { KeyPurposeID.IdKPServerAuth };
+
+            gen.AddExtension(
+                X509Extensions.ExtendedKeyUsage.Id,
+                critical: true,
+                extensionValue: new ExtendedKeyUsage(usages));
+        };
+
+        /// <summary>
+        /// Modification generator that can be passed to TestCertificate.Generate().
         /// The generator will create an expired certificate.
         /// </summary>
         public static Action<X509V3CertificateGenerator> CertificateModificationGeneratorExpiredCert = delegate (X509V3CertificateGenerator gen)
@@ -512,6 +527,16 @@ namespace Test.Utility.Signing
             // Add the cert to Root CA list in LocalMachine as it does not prompt a dialog
             // This makes all the associated tests to require admin privilege
             return TestCertificate.Generate(actionGenerator).WithTrust(StoreName.Root, StoreLocation.LocalMachine);
+        }
+
+        public static TrustedTestCert<TestCertificate> GenerateTrustedTestSSLCertificate()
+        {
+            var actionGenerator = CertificateModificationGeneratorForSSLEkuCert;
+
+            // Code Sign EKU needs trust to a root authority
+            // Add the cert to Root CA list in LocalMachine as it does not prompt a dialog
+            // This makes all the associated tests to require admin privilege
+            return TestCertificate.Generate(actionGenerator).WithPrivateKeyAndTrust(StoreName.Root, StoreLocation.LocalMachine);
         }
 
         public static TrustedTestCert<TestCertificate> GenerateTrustedTestCertificateExpired()

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
 
 using NuGet.Common;
 using System;
@@ -31,6 +31,7 @@ namespace NuGet.CommandLine.Test
         private static HashSet<int> _appDomainOwnedPorts = new HashSet<int>();
 
         public int PortNumber { get; private set; }
+
         public string BaseUri { get; }
 
         /// <summary>
@@ -39,7 +40,7 @@ namespace NuGet.CommandLine.Test
         /// <param name="basePath">The base path for all request URL's.
         /// Can be either null (default) for "/" or any "/"-prefixed string (e.g.:  /{GUID}).</param>
         /// <param name="basePort">The base port for all request URL's.</param>
-        public PortReserver(string basePath = null, int basePort = 50231)
+        public PortReserver(string basePath = null, int basePort = 50231, bool secure = false)
         {
             if (!string.IsNullOrEmpty(basePath) && (!basePath.StartsWith("/") || basePath.EndsWith("/")))
             {
@@ -98,7 +99,8 @@ namespace NuGet.CommandLine.Test
                 }
             }
 
-            BaseUri = string.Format(CultureInfo.InvariantCulture, "http://localhost:{0}{1}/", PortNumber, basePath ?? string.Empty);
+            var prefix = "https";
+            BaseUri = string.Format(CultureInfo.InvariantCulture, "{0}://localhost:{1}{2}/", prefix, PortNumber, basePath ?? string.Empty);
         }
 
         public void Dispose()
