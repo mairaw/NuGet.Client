@@ -191,7 +191,7 @@ namespace NuGet.SolutionRestoreManager
                 var toolFramework = GetNonEvaluatedPropertyOrNull(
                     projectRestoreInfo.TargetFrameworks,
                     ProjectBuildProperties.DotnetCliToolTargetFramework,
-                    NuGetFramework.Parse) ?? CommonFrameworks.NetCoreApp10;
+                    NuGetFramework.Parse).SingleOrDefault() ?? CommonFrameworks.NetCoreApp10;
 
                 var packagesPath = GetRestoreProjectPath(projectRestoreInfo.TargetFrameworks);
                 var fallbackFolders = GetRestoreFallbackFolders(projectRestoreInfo.TargetFrameworks).AsList();
@@ -283,9 +283,9 @@ namespace NuGet.SolutionRestoreManager
                                     .Select(e => new PackageSource(e))
                                     .ToList(),
                     ProjectWideWarningProperties = WarningProperties.GetWarningProperties(
-                        treatWarningsAsErrors: GetNonEvaluatedPropertyOrNull(projectRestoreInfo.TargetFrameworks, TreatWarningsAsErrors, e => e),
-                        warningsAsErrors: GetNonEvaluatedPropertyOrNull(projectRestoreInfo.TargetFrameworks, WarningsAsErrors, e => e),
-                        noWarn: GetNonEvaluatedPropertyOrNull(projectRestoreInfo.TargetFrameworks, NoWarn, e => e)),
+                        treatWarningsAsErrors: GetSingleOrDefaultProperties(projectRestoreInfo.TargetFrameworks, TreatWarningsAsErrors, e => e),
+                        warningsAsErrors: GetSingleOrDefaultNuGetLogCodes(projectRestoreInfo.TargetFrameworks, WarningsAsErrors, e => MSBuildStringUtility.GetNuGetLogCodes(e)),
+                        noWarn: GetSingleOrDefaultNuGetLogCodes(projectRestoreInfo.TargetFrameworks, NoWarn, e => MSBuildStringUtility.GetNuGetLogCodes(e))),
                     CacheFilePath = NoOpRestoreUtilities.GetProjectCacheFilePath(cacheRoot: outputPath, projectPath: projectFullPath)
                 },
                 RuntimeGraph = GetRuntimeGraph(projectRestoreInfo),
@@ -297,7 +297,7 @@ namespace NuGet.SolutionRestoreManager
 
         private static string GetPackageId(ProjectNames projectNames, IVsTargetFrameworks tfms)
         {
-            var packageId = GetNonEvaluatedPropertyOrNull(tfms, PackageId, v => v);
+            var packageId = GetNonEvaluatedPropertyOrNull(tfms, PackageId, v => v).SingleOrDefault();
             return packageId ?? projectNames.ShortName;
         }
 
@@ -308,12 +308,12 @@ namespace NuGet.SolutionRestoreManager
                 GetNonEvaluatedPropertyOrNull(tfms, PackageVersion, NuGetVersion.Parse)
                 ?? GetNonEvaluatedPropertyOrNull(tfms, Version, NuGetVersion.Parse);
 
-            return versionPropertyValue ?? PackageSpec.DefaultVersion;
+            return versionPropertyValue.SingleOrDefault() ?? PackageSpec.DefaultVersion;
         }
 
         private static string GetRestoreProjectPath(IVsTargetFrameworks tfms)
         {
-            return GetNonEvaluatedPropertyOrNull(tfms, RestorePackagesPath, e => e);
+            return GetNonEvaluatedPropertyOrNull(tfms, RestorePackagesPath, e => e).SingleOrDefault();
         }
 
         /// <summary>
@@ -322,7 +322,7 @@ namespace NuGet.SolutionRestoreManager
         /// </summary>
         private static IEnumerable<string> GetRestoreSources(IVsTargetFrameworks tfms)
         {
-            var sources = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreSources, e => e)));
+            var sources = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreSources, e => e).SingleOrDefault()));
 
             // Read RestoreAdditionalProjectSources from the inner build, these may be different between frameworks.
             // Exclude is not allowed for sources
@@ -339,7 +339,7 @@ namespace NuGet.SolutionRestoreManager
         /// </summary>
         private static IEnumerable<string> GetRestoreFallbackFolders(IVsTargetFrameworks tfms)
         {
-            var folders = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreFallbackFolders, e => e)));
+            var folders = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreFallbackFolders, e => e).SingleOrDefault()));
 
             // Read RestoreAdditionalProjectFallbackFolders from the inner build.
             // Remove all excluded fallback folders listed in RestoreAdditionalProjectFallbackFoldersExcludes.
@@ -360,9 +360,37 @@ namespace NuGet.SolutionRestoreManager
             return input;
         }
 
+        private static TValue GetSingleOrDefaultProperties<TValue>(
+            IVsTargetFrameworks tfms,
+            string propertyName,
+            Func<string, TValue> valueFactory)
+        {
+            var warningProperties = GetNonEvaluatedPropertyOrNull(tfms, propertyName, valueFactory);
+
+            if (warningProperties.Count() > 1)
+            {
+                return default(TValue);
+            }
+            else
+            {
+                return warningProperties.SingleOrDefault();
+            }
+
+        }
+
+        private static IEnumerable<NuGetLogCode> GetSingleOrDefaultNuGetLogCodes(
+            IVsTargetFrameworks tfms,
+            string propertyName,
+            Func<string, IEnumerable<NuGetLogCode>> valueFactory)
+        {
+            var logCodeProperties = GetNonEvaluatedPropertyOrNull(tfms, propertyName, valueFactory);
+
+            return MSBuildStringUtility.GetSingleOrDefaultDistinctNuGetLogCodes(logCodeProperties);
+        }
+
         // Trying to fetch a property value from tfm property bags.
         // If defined the property should have identical values in all of the occurances.
-        private static TValue GetNonEvaluatedPropertyOrNull<TValue>(
+        private static IEnumerable<TValue> GetNonEvaluatedPropertyOrNull<TValue>(
             IVsTargetFrameworks tfms,
             string propertyName,
             Func<string, TValue> valueFactory)
@@ -374,8 +402,7 @@ namespace NuGet.SolutionRestoreManager
                     var val = GetPropertyValueOrNull(tfm.Properties, propertyName);
                     return val != null ? valueFactory(val) : default(TValue);
                 })
-                .Distinct()
-                .SingleOrDefault();
+                .Distinct();
         }
 
         /// <summary>
@@ -591,6 +618,25 @@ namespace NuGet.SolutionRestoreManager
             var value = GetPropertyValueOrNull(item, "ReferenceOutputAssembly");
 
             return MSBuildStringUtility.IsTrueOrEmpty(value);
+        }
+
+        private IEnumerable<NuGetLogCode> GetDistinctNuGetLogCodes(IEnumerable<IEnumerable<NuGetLogCode>> nugetLogCodes)
+        {
+            IEnumerable<NuGetLogCode> result = null;
+
+            foreach(var logCode in nugetLogCodes)
+            {
+                if (result == null)
+                {
+                    result = logCode;
+                }
+                else if (!result.SequenceEqual(logCode))
+                {
+                    return Enumerable.Empty<NuGetLogCode>();
+                }
+            }
+
+            return result;
         }
     }
 }

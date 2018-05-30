@@ -112,5 +112,27 @@ namespace NuGet.Common
 
             return value.Replace(',', ';');
         }
+
+        /// <summary>
+        /// Return empty list of NuGetLogCode if all lists of NuGetLogCode are not the same. 
+        /// </summary>
+        public static IEnumerable<NuGetLogCode> GetSingleOrDefaultDistinctNuGetLogCodes(IEnumerable<IEnumerable<NuGetLogCode>> nugetLogCodes)
+        {
+            IEnumerable<NuGetLogCode> result = null;
+
+            foreach (var logCode in nugetLogCodes)
+            {
+                if (result == null)
+                {
+                    result = logCode;
+                }
+                else if (!result.SequenceEqual(logCode))
+                {
+                    return Enumerable.Empty<NuGetLogCode>();
+                }
+            }
+
+            return result;
+        }
     }
 }
