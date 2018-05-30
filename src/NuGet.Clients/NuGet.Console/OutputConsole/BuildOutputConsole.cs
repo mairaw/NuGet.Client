@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -36,25 +36,32 @@ namespace NuGetConsole
 
         public int ConsoleWidth => DefaultConsoleWidth;
 
-        [SuppressMessage("Microsoft.VisualStudio.Threading.Analyzers", "VSTHRD010", Justification = "NuGet/Home#4833 Baseline")]
         public void Activate()
         {
-            if (_outputWindowPane == null)
+            NuGetUIThreadHelper.JoinableTaskFactory.Run(async delegate
             {
-                _vsOutputWindow.GetPane(ref BuildWindowPaneGuid, out _outputWindowPane);
-            }
+                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (_outputWindowPane == null)
+                {
+                    _vsOutputWindow.GetPane(ref BuildWindowPaneGuid, out _outputWindowPane);
+                }
 
-            _outputWindowPane?.Activate();
+                _outputWindowPane?.Activate();
+            });
         }
 
         public void Clear()
         {
         }
 
-        [SuppressMessage("Microsoft.VisualStudio.Threading.Analyzers", "VSTHRD010", Justification = "NuGet/Home#4833 Baseline")]
         public void Write(string text)
         {
-            _outputWindowPane?.OutputStringThreadSafe(text);
+            NuGetUIThreadHelper.JoinableTaskFactory.Run(async delegate
+            {
+                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                _outputWindowPane?.OutputStringThreadSafe(text);
+            });
         }
 
         public void Write(string text, Color? foreground, Color? background) => Write(text);
