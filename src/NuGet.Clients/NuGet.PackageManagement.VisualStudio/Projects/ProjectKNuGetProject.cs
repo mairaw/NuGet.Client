@@ -70,8 +70,8 @@ namespace NuGet.PackageManagement.VisualStudio
 
             NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
             {
-                var supportedFrameworks = (await _project.GetSupportedFrameworksAsync(CancellationToken.None))
-                .Select(f => NuGetFramework.Parse(f.FullName));
+                var frameworks = await _project.GetSupportedFrameworksAsync(CancellationToken.None);
+                var supportedFrameworks = frameworks.Select(f => NuGetFramework.Parse(f.FullName));
 
                 InternalMetadata.Add(NuGetProjectMetadataKeys.SupportedFrameworks, supportedFrameworks);
             });

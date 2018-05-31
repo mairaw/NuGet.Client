@@ -146,6 +146,7 @@ namespace NuGet.PackageManagement.VisualStudio
                     await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                     _vsSolution2.UnadviseSolutionEvents(_cookie);
+                    _vsSolution2 = null;
                 });
             }
         }

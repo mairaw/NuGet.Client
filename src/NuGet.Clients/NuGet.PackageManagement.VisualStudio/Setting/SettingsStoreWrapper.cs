@@ -36,8 +36,8 @@ namespace NuGet.PackageManagement.VisualStudio
                 await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                 int value;
-                _store.GetBoolOrDefault(collection, propertyName, defaultValue ? 1 : 0, out value);
-                return value != 0;
+                var hr = _store.GetBoolOrDefault(collection, propertyName, defaultValue ? 1 : 0, out value);
+                return ErrorHandler.Succeeded(hr) ? value != 0 : false;
             });
         }
 

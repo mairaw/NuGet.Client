@@ -115,8 +115,10 @@ namespace NuGet.PackageManagement.VisualStudio
                 await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                 uint cookie;
-                ProjectTracker.AdviseTrackProjectDocumentsEvents(_projectDocumentListener, out cookie);
-                _trackingCookie = cookie;
+                if (ProjectTracker.AdviseTrackProjectDocumentsEvents(_projectDocumentListener, out cookie) == VSConstants.S_OK)
+                {
+                    _trackingCookie = cookie;
+                }
             });
         }
 
@@ -131,7 +133,8 @@ namespace NuGet.PackageManagement.VisualStudio
             {
                 await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-                ProjectTracker.UnadviseTrackProjectDocumentsEvents((uint)_trackingCookie);
+                var hr = ProjectTracker.UnadviseTrackProjectDocumentsEvents(_trackingCookie.Value);
+                ErrorHandler.ThrowOnFailure(hr);
             });
 
             _trackingCookie = null;

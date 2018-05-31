@@ -594,52 +594,49 @@ namespace NuGet.Options
 
         private void OnBrowseButtonClicked(object sender, EventArgs e)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             const int MaxDirectoryLength = 1000;
 
             //const int BIF_RETURNONLYFSDIRS = 0x00000001;   // For finding a folder to start document searching.
             const int BIF_BROWSEINCLUDEURLS = 0x00000080; // Allow URLs to be displayed or entered.
 
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
+            var uiShell = (IVsUIShell2)_serviceProvider.GetService(typeof(SVsUIShell));
+
+            var rgch = new char[MaxDirectoryLength + 1];
+
+            // allocate a buffer in unmanaged memory for file name (string)
+            var bufferPtr = Marshal.AllocCoTaskMem((rgch.Length + 1) * 2);
+            // copy initial path to bufferPtr
+            Marshal.Copy(rgch, 0, bufferPtr, rgch.Length);
+
+            var pBrowse = new VSBROWSEINFOW[1];
+            pBrowse[0] = new VSBROWSEINFOW
             {
-                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                lStructSize = (uint)Marshal.SizeOf(pBrowse[0]),
+                dwFlags = BIF_BROWSEINCLUDEURLS,
+                pwzDlgTitle = Resources.BrowseFolderDialogDescription,
+                nMaxDirName = MaxDirectoryLength,
+                hwndOwner = Handle,
+                pwzDirName = bufferPtr,
+                pwzInitialDir = DetermineInitialDirectory()
+            };
 
-                var uiShell = (IVsUIShell2)_serviceProvider.GetService(typeof(SVsUIShell));
+            var browseInfo = new VSNSEBROWSEINFOW[1] { new VSNSEBROWSEINFOW() };
 
-                var rgch = new char[MaxDirectoryLength + 1];
+            var ret = uiShell.GetDirectoryViaBrowseDlgEx(pBrowse, "", Resources.BrowseFolderDialogSelectButton, "", browseInfo);
+            if (ret == VSConstants.S_OK)
+            {
+                var pathPtr = pBrowse[0].pwzDirName;
+                var path = Marshal.PtrToStringAuto(pathPtr);
+                NewPackageSource.Text = path;
 
-                // allocate a buffer in unmanaged memory for file name (string)
-                var bufferPtr = Marshal.AllocCoTaskMem((rgch.Length + 1) * 2);
-                // copy initial path to bufferPtr
-                Marshal.Copy(rgch, 0, bufferPtr, rgch.Length);
-
-                var pBrowse = new VSBROWSEINFOW[1];
-                pBrowse[0] = new VSBROWSEINFOW
+                // if the package name text box is empty, we fill it with the selected folder's name
+                if (string.IsNullOrEmpty(NewPackageName.Text))
                 {
-                    lStructSize = (uint)Marshal.SizeOf(pBrowse[0]),
-                    dwFlags = BIF_BROWSEINCLUDEURLS,
-                    pwzDlgTitle = Resources.BrowseFolderDialogDescription,
-                    nMaxDirName = MaxDirectoryLength,
-                    hwndOwner = Handle,
-                    pwzDirName = bufferPtr,
-                    pwzInitialDir = DetermineInitialDirectory()
-                };
-
-                var browseInfo = new VSNSEBROWSEINFOW[1] { new VSNSEBROWSEINFOW() };
-
-                var ret = uiShell.GetDirectoryViaBrowseDlgEx(pBrowse, "", Resources.BrowseFolderDialogSelectButton, "", browseInfo);
-                if (ret == VSConstants.S_OK)
-                {
-                    var pathPtr = pBrowse[0].pwzDirName;
-                    var path = Marshal.PtrToStringAuto(pathPtr);
-                    NewPackageSource.Text = path;
-
-                    // if the package name text box is empty, we fill it with the selected folder's name
-                    if (string.IsNullOrEmpty(NewPackageName.Text))
-                    {
-                        NewPackageName.Text = Path.GetFileName(path);
-                    }
+                    NewPackageName.Text = Path.GetFileName(path);
                 }
-            });
+            }
         }
 
         private string DetermineInitialDirectory()

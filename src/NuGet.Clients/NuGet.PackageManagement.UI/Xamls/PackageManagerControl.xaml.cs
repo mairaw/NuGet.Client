@@ -611,10 +611,10 @@ namespace NuGet.PackageManagement.UI
                 await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                 await SearchPackagesAndRefreshUpdateCountAsync(
-                searchText: _windowSearchHost.SearchQuery.SearchString,
-                useCacheForUpdates: useCacheForUpdates,
-                pSearchCallback: null,
-                searchTask: null);
+                    searchText: _windowSearchHost.SearchQuery.SearchString,
+                    useCacheForUpdates: useCacheForUpdates,
+                    pSearchCallback: null,
+                    searchTask: null);
             });
         }
 
@@ -623,7 +623,7 @@ namespace NuGet.PackageManagement.UI
         /// </summary>
         internal async Task SearchPackagesAndRefreshUpdateCountAsync(string searchText, bool useCacheForUpdates, IVsSearchCallback pSearchCallback, IVsSearchTask searchTask)
         {
-            VSThreadHelper.ThrowIfNotOnUIThread();
+            await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             var loadContext = new PackageLoadContext(ActiveSources, Model.IsSolution, Model.Context);
 
@@ -977,7 +977,7 @@ namespace NuGet.PackageManagement.UI
 
         private void FocusOnSearchBox_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
+            NuGetUIThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

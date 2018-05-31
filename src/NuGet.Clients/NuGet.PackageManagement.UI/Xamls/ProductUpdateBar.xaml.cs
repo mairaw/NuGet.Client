@@ -60,9 +60,8 @@ namespace NuGet.PackageManagement.UI
             UpdateStarting(this, EventArgs.Empty);
 
             // invoke with priority as Background so that our window is closed first before the Update method is called.
-            NuGetUIThreadHelper.JoinableTaskFactory.WithPriority(VsTaskRunContext.UIThreadBackgroundPriority).Run(async () =>
+            NuGetUIThreadHelper.JoinableTaskFactory.StartOnIdle(() =>
             {
-                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 _productUpdateService.Update();
             });
         }

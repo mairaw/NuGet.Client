@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Windows.Media;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 using NuGet.VisualStudio;
 
 namespace NuGetConsole
@@ -21,9 +22,9 @@ namespace NuGetConsole
 
         private readonly IVsOutputWindow _vsOutputWindow;
         private readonly IVsUIShell _vsUiShell;
-        private readonly Lazy<IVsOutputWindowPane> _outputWindowPane;
+        private readonly AsyncLazy<IVsOutputWindowPane> _outputWindowPane;
 
-        private IVsOutputWindowPane VsOutputWindowPane => _outputWindowPane.Value;
+        private IVsOutputWindowPane VsOutputWindowPane => NuGetUIThreadHelper.JoinableTaskFactory.Run(_outputWindowPane.GetValueAsync);
 
         public OutputConsole(
             IVsOutputWindow vsOutputWindow,
@@ -42,29 +43,27 @@ namespace NuGetConsole
             _vsOutputWindow = vsOutputWindow;
             _vsUiShell = vsUiShell;
 
-            _outputWindowPane = new Lazy<IVsOutputWindowPane>(() =>
+            _outputWindowPane = new AsyncLazy<IVsOutputWindowPane>(async () =>
             {
-                return NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
-                {
-                    await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-                    // create the Package Manager pane within the Output window
-                    var hr = _vsOutputWindow.CreatePane(
-                        ref GuidList.guidNuGetOutputWindowPaneGuid,
-                        Resources.OutputConsolePaneName,
-                        fInitVisible: 1,
-                        fClearWithSolution: 0);
-                    ErrorHandler.ThrowOnFailure(hr);
+                // create the Package Manager pane within the Output window
+                var hr = _vsOutputWindow.CreatePane(
+                    ref GuidList.guidNuGetOutputWindowPaneGuid,
+                    Resources.OutputConsolePaneName,
+                    fInitVisible: 1,
+                    fClearWithSolution: 0);
+                ErrorHandler.ThrowOnFailure(hr);
 
-                    IVsOutputWindowPane pane;
-                    hr = _vsOutputWindow.GetPane(
-                        ref GuidList.guidNuGetOutputWindowPaneGuid,
-                        out pane);
-                    ErrorHandler.ThrowOnFailure(hr);
+                IVsOutputWindowPane pane;
+                hr = _vsOutputWindow.GetPane(
+                    ref GuidList.guidNuGetOutputWindowPaneGuid,
+                    out pane);
+                ErrorHandler.ThrowOnFailure(hr);
 
-                    return pane;
-                });
-            });
+                return pane;
+
+            }, NuGetUIThreadHelper.JoinableTaskFactory);
         }
 
         #region IConsole
@@ -156,7 +155,7 @@ namespace NuGetConsole
         {
             if (!IsStartCompleted)
             {
-                var ignore = _outputWindowPane.Value;
+                var ignore = VsOutputWindowPane;
                 StartCompleted?.Invoke(this, EventArgs.Empty);
             }
 

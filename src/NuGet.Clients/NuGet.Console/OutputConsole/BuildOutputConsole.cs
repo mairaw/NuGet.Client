@@ -2,10 +2,10 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Windows.Media;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using NuGet.VisualStudio;
 
@@ -38,16 +38,14 @@ namespace NuGetConsole
 
         public void Activate()
         {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(async delegate
-            {
-                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                if (_outputWindowPane == null)
-                {
-                    _vsOutputWindow.GetPane(ref BuildWindowPaneGuid, out _outputWindowPane);
-                }
+            ThreadHelper.ThrowIfNotOnUIThread();
 
-                _outputWindowPane?.Activate();
-            });
+            if (_outputWindowPane == null)
+            {
+                _vsOutputWindow.GetPane(ref BuildWindowPaneGuid, out _outputWindowPane);
+            }
+
+            _outputWindowPane?.Activate();
         }
 
         public void Clear()

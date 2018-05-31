@@ -606,6 +606,8 @@ namespace NuGet.SolutionRestoreManager
 
             public void ContinuationAction(Task<bool> targetTask, JoinableTaskFactory jtf)
             {
+                Assumes.True(targetTask.IsCompleted);
+
                 // propagate the restore target task status to the *unbound* active task.
                 if (targetTask.IsFaulted || targetTask.IsCanceled)
                 {
@@ -615,10 +617,9 @@ namespace NuGet.SolutionRestoreManager
                 else
                 {
                     // completed successfully
-                    jtf.Run(async () =>
-                    {
-                        JobTcs.TrySetResult(await targetTask);
-                    });
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
+                    JobTcs.TrySetResult(targetTask.Result);
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
                 }
             }
 
