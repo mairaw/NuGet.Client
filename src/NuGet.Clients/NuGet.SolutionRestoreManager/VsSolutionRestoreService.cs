@@ -619,24 +619,5 @@ namespace NuGet.SolutionRestoreManager
 
             return MSBuildStringUtility.IsTrueOrEmpty(value);
         }
-
-        private IEnumerable<NuGetLogCode> GetDistinctNuGetLogCodes(IEnumerable<IEnumerable<NuGetLogCode>> nugetLogCodes)
-        {
-            IEnumerable<NuGetLogCode> result = null;
-
-            foreach(var logCode in nugetLogCodes)
-            {
-                if (result == null)
-                {
-                    result = logCode;
-                }
-                else if (!result.SequenceEqual(logCode))
-                {
-                    return Enumerable.Empty<NuGetLogCode>();
-                }
-            }
-
-            return result;
-        }
     }
 }

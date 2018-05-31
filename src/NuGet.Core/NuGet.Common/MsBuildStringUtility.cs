@@ -118,21 +118,30 @@ namespace NuGet.Common
         /// </summary>
         public static IEnumerable<NuGetLogCode> GetSingleOrDefaultDistinctNuGetLogCodes(IEnumerable<IEnumerable<NuGetLogCode>> nugetLogCodes)
         {
-            IEnumerable<NuGetLogCode> result = null;
-
-            foreach (var logCode in nugetLogCodes)
+            if (nugetLogCodes.Count() > 0)
             {
-                if (result == null)
+                IEnumerable<NuGetLogCode> result = null;
+                var first = true;
+
+                foreach (var logCode in nugetLogCodes)
                 {
-                    result = logCode;
+                    // If this is first item, assign it to result
+                    if (first)
+                    {
+                        result = logCode;
+                        first = false;
+                    }
+                    // Compare the rest items to the first one.
+                    else if (result == null || result.Count() != logCode.Count() || !result.All(logCode.Contains))
+                    {
+                        return Enumerable.Empty<NuGetLogCode>();
+                    }
                 }
-                else if (!result.SequenceEqual(logCode))
-                {
-                    return Enumerable.Empty<NuGetLogCode>();
-                }
+
+                return result;
             }
 
-            return result;
+            return Enumerable.Empty<NuGetLogCode>();
         }
     }
 }
