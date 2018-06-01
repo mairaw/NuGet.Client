@@ -120,7 +120,7 @@ namespace NuGet.Common
         {
             if (nugetLogCodes.Count() > 0)
             {
-                IEnumerable<NuGetLogCode> result = null;
+                var result = Enumerable.Empty<NuGetLogCode>();
                 var first = true;
 
                 foreach (var logCode in nugetLogCodes)
@@ -138,7 +138,7 @@ namespace NuGet.Common
                     }
                 }
 
-                return result;
+                return result ?? Enumerable.Empty<NuGetLogCode>();
             }
 
             return Enumerable.Empty<NuGetLogCode>();
