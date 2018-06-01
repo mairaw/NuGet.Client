@@ -188,10 +188,10 @@ namespace NuGet.SolutionRestoreManager
 
             if (projectRestoreInfo.ToolReferences != null)
             {
-                var toolFramework = GetNonEvaluatedPropertyOrNull(
+                var toolFramework = GetSingleNonEvaluatedPropertyOrNull(
                     projectRestoreInfo.TargetFrameworks,
                     ProjectBuildProperties.DotnetCliToolTargetFramework,
-                    NuGetFramework.Parse).SingleOrDefault() ?? CommonFrameworks.NetCoreApp10;
+                    NuGetFramework.Parse)?? CommonFrameworks.NetCoreApp10;
 
                 var packagesPath = GetRestoreProjectPath(projectRestoreInfo.TargetFrameworks);
                 var fallbackFolders = GetRestoreFallbackFolders(projectRestoreInfo.TargetFrameworks).AsList();
@@ -297,7 +297,7 @@ namespace NuGet.SolutionRestoreManager
 
         private static string GetPackageId(ProjectNames projectNames, IVsTargetFrameworks tfms)
         {
-            var packageId = GetNonEvaluatedPropertyOrNull(tfms, PackageId, v => v).SingleOrDefault();
+            var packageId = GetSingleNonEvaluatedPropertyOrNull(tfms, PackageId, v => v);
             return packageId ?? projectNames.ShortName;
         }
 
@@ -305,15 +305,15 @@ namespace NuGet.SolutionRestoreManager
         {
             // $(PackageVersion) property if set overrides the $(Version)
             var versionPropertyValue =
-                GetNonEvaluatedPropertyOrNull(tfms, PackageVersion, NuGetVersion.Parse)
-                ?? GetNonEvaluatedPropertyOrNull(tfms, Version, NuGetVersion.Parse);
+                GetSingleNonEvaluatedPropertyOrNull(tfms, PackageVersion, NuGetVersion.Parse)
+                ?? GetSingleNonEvaluatedPropertyOrNull(tfms, Version, NuGetVersion.Parse);
 
-            return versionPropertyValue.SingleOrDefault() ?? PackageSpec.DefaultVersion;
+            return versionPropertyValue?? PackageSpec.DefaultVersion;
         }
 
         private static string GetRestoreProjectPath(IVsTargetFrameworks tfms)
         {
-            return GetNonEvaluatedPropertyOrNull(tfms, RestorePackagesPath, e => e).SingleOrDefault();
+            return GetSingleNonEvaluatedPropertyOrNull(tfms, RestorePackagesPath, e => e);
         }
 
         /// <summary>
@@ -322,7 +322,7 @@ namespace NuGet.SolutionRestoreManager
         /// </summary>
         private static IEnumerable<string> GetRestoreSources(IVsTargetFrameworks tfms)
         {
-            var sources = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreSources, e => e).SingleOrDefault()));
+            var sources = HandleClear(MSBuildStringUtility.Split(GetSingleNonEvaluatedPropertyOrNull(tfms, RestoreSources, e => e)));
 
             // Read RestoreAdditionalProjectSources from the inner build, these may be different between frameworks.
             // Exclude is not allowed for sources
@@ -339,7 +339,7 @@ namespace NuGet.SolutionRestoreManager
         /// </summary>
         private static IEnumerable<string> GetRestoreFallbackFolders(IVsTargetFrameworks tfms)
         {
-            var folders = HandleClear(MSBuildStringUtility.Split(GetNonEvaluatedPropertyOrNull(tfms, RestoreFallbackFolders, e => e).SingleOrDefault()));
+            var folders = HandleClear(MSBuildStringUtility.Split(GetSingleNonEvaluatedPropertyOrNull(tfms, RestoreFallbackFolders, e => e)));
 
             // Read RestoreAdditionalProjectFallbackFolders from the inner build.
             // Remove all excluded fallback folders listed in RestoreAdditionalProjectFallbackFoldersExcludes.
@@ -388,8 +388,7 @@ namespace NuGet.SolutionRestoreManager
             return MSBuildStringUtility.GetSingleOrDefaultDistinctNuGetLogCodes(logCodeProperties);
         }
 
-        // Trying to fetch a property value from tfm property bags.
-        // If defined the property should have identical values in all of the occurances.
+        // Trying to fetch a list of property value from all tfm property bags.
         private static IEnumerable<TValue> GetNonEvaluatedPropertyOrNull<TValue>(
             IVsTargetFrameworks tfms,
             string propertyName,
@@ -403,6 +402,16 @@ namespace NuGet.SolutionRestoreManager
                     return val != null ? valueFactory(val) : default(TValue);
                 })
                 .Distinct();
+        }
+
+        // Trying to fetch a property value from tfm property bags.
+        // If defined the property should have identical values in all of the occurances.
+        private static TValue GetSingleNonEvaluatedPropertyOrNull<TValue>(
+            IVsTargetFrameworks tfms,
+            string propertyName,
+            Func<string, TValue> valueFactory)
+        {
+            return GetNonEvaluatedPropertyOrNull(tfms, propertyName, valueFactory).SingleOrDefault();
         }
 
         /// <summary>
